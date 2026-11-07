@@ -34,17 +34,32 @@ class BlockerService : AccessibilityService() {
     private var currentPkg: String? = null
     private var lastSeen = ""
 
+    /** Revisa cada segundo qué app está delante, por si Android no envía el evento. */
+    private val poller = object : Runnable {
+        override fun run() {
+            runCatching { pollForeground() }
+            handler.postDelayed(this, 1000)
+        }
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        status = "servicio conectado, esperando apps"
+        handler.removeCallbacks(poller)
+        handler.postDelayed(poller, 1000)
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
-        val pkg = event.packageName?.toString() ?: return
+    private fun pollForeground() {
+        if (!prefs.enabled) return
+        val pkg = rootInActiveWindow?.packageName?.toString() ?: return
         if (pkg == packageName || isNoise(pkg)) return
+        handleForeground(pkg)
+    }
 
+    private fun handleForeground(pkg: String) {
         currentPkg = pkg
+        lastEventAt = System.currentTimeMillis()
         if (pkg != lastSeen) {
             lastSeen = pkg
             prefs.lastSeen = pkg   // diagnóstico: se muestra en Ajustes
@@ -54,12 +69,29 @@ class BlockerService : AccessibilityService() {
         blockIfNeeded(pkg)
     }
 
+    /** Prueba el aviso sin depender de ninguna app bloqueada. */
+    fun testOverlay() {
+        hideOverlay()
+        showOverlay(packageName)
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        val pkg = event.packageName?.toString() ?: return
+        if (pkg == packageName || isNoise(pkg)) return
+
+        handleForeground(pkg)
+    }
+
     private fun isNoise(pkg: String) =
         pkg == "com.android.systemui" || pkg == "android" || pkg.contains("inputmethod")
 
     private fun blockIfNeeded(pkg: String) {
-        if (!prefs.enabled || pkg !in prefs.blocked) return
-        if (System.currentTimeMillis() < prefs.unlockUntil) return
+        val name = pkg.substringAfterLast('.')
+        if (!prefs.enabled) { status = "bloqueo apagado: activa el interruptor en Inicio"; return }
+        if (pkg !in prefs.blocked) { status = "$name no está en tu lista de bloqueadas"; return }
+        val left = prefs.unlockUntil - System.currentTimeMillis()
+        if (left > 0) { status = "$name desbloqueada, quedan ${left / 1000} s"; return }
         if (overlay != null) return
         showOverlay(pkg)
     }
@@ -72,6 +104,7 @@ class BlockerService : AccessibilityService() {
             setColor(color); cornerRadius = 14 * d
         }
 
+        val name = pkg.substringAfterLast('.')
         val appName = runCatching {
             packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
         }.getOrDefault("Esta app")
@@ -104,11 +137,10 @@ class BlockerService : AccessibilityService() {
             background = rounded(Color.parseColor("#0A84FF"))
             setOnClickListener {
                 hideOverlay()
-                startActivity(
-                    Intent(this@BlockerService, BlockActivity::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        .putExtra(BlockActivity.EXTRA_PACKAGE, pkg)
-                )
+                val go = Intent(this@BlockerService, BlockActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                if (pkg != packageName) go.putExtra(BlockActivity.EXTRA_PACKAGE, pkg)   // sin extra = práctica
+                startActivity(go)
             }
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, px(54)).apply { topMargin = px(20) })
         root.addView(Button(this).apply {
@@ -134,7 +166,9 @@ class BlockerService : AccessibilityService() {
             wm.addView(root, lp)
             overlay = root
             overlayPkg = pkg
+            status = "aviso mostrado sobre $name"
         } catch (e: Exception) {
+            status = "error al dibujar el aviso: ${e.javaClass.simpleName} ${e.message ?: ""}"
             // Último recurso: intentar abrir el juego directamente.
             startActivity(
                 Intent(this, BlockActivity::class.java)
@@ -166,11 +200,14 @@ class BlockerService : AccessibilityService() {
     override fun onInterrupt() {}
 
     override fun onUnbind(intent: Intent?): Boolean {
+        handler.removeCallbacks(poller)
         hideOverlay()
+        status = "servicio desconectado"
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
+        handler.removeCallbacks(poller)
         hideOverlay()
         if (instance === this) instance = null
         super.onDestroy()
@@ -179,5 +216,11 @@ class BlockerService : AccessibilityService() {
     companion object {
         var instance: BlockerService? = null
             private set
+
+        /** Qué hizo el servicio la última vez (se enseña en Ajustes para diagnosticar). */
+        @Volatile var status: String = "sin actividad todavía"
+
+        /** Momento (ms) de la última app detectada. */
+        @Volatile var lastEventAt: Long = 0L
     }
 }

@@ -575,8 +575,29 @@ private fun SettingsScreen(prefs: Prefs, a11y: Boolean, tick: Int, onChanged: ()
             footer = "En Xiaomi, Samsung, Oppo y similares, deja Pausa «Sin restricciones» en batería y activa «Inicio automático». Si no aparece una app aquí tras abrirla, el servicio de accesibilidad no está activo."
         ) {
             ListRow(
+                title = "Servicio",
+                trailing = { ValueText(if (BlockerService.instance != null) "Conectado" else "No conectado") }
+            )
+            Hairline()
+            ListRow(
                 title = "Última app detectada",
+                subtitle = BlockerService.lastEventAt.takeIf { it > 0 }
+                    ?.let { "hace ${(System.currentTimeMillis() - it) / 1000} s" },
                 trailing = { ValueText(prefs.lastSeen.ifEmpty { "ninguna" }.substringAfterLast('.')) }
+            )
+            Hairline()
+            ListRow(title = "Estado", subtitle = BlockerService.status)
+            Hairline()
+            ListRow(
+                title = "Probar aviso de bloqueo",
+                trailing = { Chevron() },
+                onClick = {
+                    val svc = BlockerService.instance
+                    if (svc == null) {
+                        android.widget.Toast.makeText(ctx, "El servicio de accesibilidad no está conectado", android.widget.Toast.LENGTH_LONG).show()
+                    } else svc.testOverlay()
+                    onChanged()
+                }
             )
             Hairline()
             ListRow(
@@ -603,7 +624,7 @@ private fun SettingsScreen(prefs: Prefs, a11y: Boolean, tick: Int, onChanged: ()
         }
 
         Section(header = "Acerca de") {
-            ListRow(title = "Versión", trailing = { ValueText("1.2") })
+            ListRow(title = "Versión", trailing = { ValueText("1.3") })
         }
     }
 }
