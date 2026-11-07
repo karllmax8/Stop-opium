@@ -54,7 +54,7 @@ fun GameHeader(title: String, subtitle: String) {
 }
 
 @Composable
-private fun ProgressDots(done: Int, total: Int) {
+fun ProgressDots(done: Int, total: Int) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         repeat(total) { i ->
             Box(Modifier.size(9.dp).clip(CircleShape).background(if (i < done) Ios.c.blue else Ios.c.fill))

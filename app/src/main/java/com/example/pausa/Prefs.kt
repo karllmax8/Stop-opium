@@ -10,7 +10,12 @@ enum class GameKind(val title: String) {
     WORD("Palabra"),
     MATH("Cálculo rápido"),
     SEQUENCE("Secuencia"),
-    REACTION("Reflejos")
+    REACTION("Reflejos"),
+    NUMBER("Memoria de números"),
+    CHIMP("Test del chimpancé"),
+    COLOR("Color y palabra"),
+    SUDOKU("Mini Sudoku"),
+    CROWNS("Coronas")
 }
 
 /** Persistencia simple compartida por la app y el servicio. */
@@ -38,6 +43,11 @@ class Prefs(context: Context) {
         get() = sp.getStringSet("games", GameKind.values().map { it.name }.toSet())!!
             .mapNotNull { runCatching { GameKind.valueOf(it) }.getOrNull() }.toSet()
         set(v) = sp.edit().putStringSet("games", v.map { it.name }.toSet()).apply()
+
+    /** Última app detectada por el servicio (diagnóstico). */
+    var lastSeen: String
+        get() = sp.getString("lastSeen", "") ?: ""
+        set(v) = sp.edit().putString("lastSeen", v).apply()
 
     /** Meta diaria: minutos máximos que quieres desbloquear al día. */
     var dailyGoal: Int

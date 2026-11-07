@@ -89,6 +89,11 @@ private fun GameFlow(prefs: Prefs, practice: Boolean, onClose: () -> Unit, onUnl
                     val lose: () -> Unit = { round++ }
                     when (game) {
                         GameKind.WORD -> WordGame({ won = true }, lose)
+                        GameKind.NUMBER -> NumberMemoryGame({ won = true }, lose)
+                        GameKind.CHIMP -> ChimpGame({ won = true }, lose)
+                        GameKind.COLOR -> ColorMatchGame({ won = true }, lose)
+                        GameKind.SUDOKU -> SudokuGame({ won = true }, lose)
+                        GameKind.CROWNS -> CrownsGame({ won = true }, lose)
                         GameKind.MATH -> MathGame({ won = true }, lose)
                         GameKind.SEQUENCE -> SequenceGame({ won = true }, lose)
                         GameKind.REACTION -> ReactionGame({ won = true }, lose)

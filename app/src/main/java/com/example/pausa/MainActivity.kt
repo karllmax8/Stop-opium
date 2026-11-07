@@ -38,7 +38,10 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
@@ -485,7 +488,12 @@ private fun SettingsScreen(prefs: Prefs, a11y: Boolean, tick: Int, onChanged: ()
         GameKind.WORD to (Icons.Filled.Edit to c.green),
         GameKind.MATH to (Icons.Filled.Calculate to c.blue),
         GameKind.SEQUENCE to (Icons.Filled.GridView to c.purple),
-        GameKind.REACTION to (Icons.Filled.Bolt to c.orange)
+        GameKind.REACTION to (Icons.Filled.Bolt to c.orange),
+        GameKind.NUMBER to (Icons.Filled.Add to c.indigo),
+        GameKind.CHIMP to (Icons.Filled.Face to c.red),
+        GameKind.COLOR to (Icons.Filled.Favorite to c.purple),
+        GameKind.SUDOKU to (Icons.Filled.GridView to c.green),
+        GameKind.CROWNS to (Icons.Filled.EmojiEvents to c.orange)
     )
 
     fun setGoal(v: Int) {
@@ -562,8 +570,40 @@ private fun SettingsScreen(prefs: Prefs, a11y: Boolean, tick: Int, onChanged: ()
             )
         }
 
+        Section(
+            header = "Si el bloqueo no funciona",
+            footer = "En Xiaomi, Samsung, Oppo y similares, deja Pausa «Sin restricciones» en batería y activa «Inicio automático». Si no aparece una app aquí tras abrirla, el servicio de accesibilidad no está activo."
+        ) {
+            ListRow(
+                title = "Última app detectada",
+                trailing = { ValueText(prefs.lastSeen.ifEmpty { "ninguna" }.substringAfterLast('.')) }
+            )
+            Hairline()
+            ListRow(
+                title = "Ahorro de batería",
+                trailing = { Chevron() },
+                onClick = {
+                    ctx.startActivity(
+                        Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }
+            )
+            Hairline()
+            ListRow(
+                title = "Ajustes de la app",
+                trailing = { Chevron() },
+                onClick = {
+                    ctx.startActivity(
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                            .setData(android.net.Uri.parse("package:" + ctx.packageName))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }
+            )
+        }
+
         Section(header = "Acerca de") {
-            ListRow(title = "Versión", trailing = { ValueText("1.1") })
+            ListRow(title = "Versión", trailing = { ValueText("1.2") })
         }
     }
 }
