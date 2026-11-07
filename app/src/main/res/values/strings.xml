@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pausa</string>
+    <string name="service_label">Pausa</string>
+    <string name="service_description">Pausa detecta cuándo abres una app que elegiste bloquear y te muestra un minijuego para desbloquearla. No lee ni guarda el contenido de tu pantalla.</string>
+</resources>
