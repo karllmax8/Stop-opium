@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -12,36 +11,42 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
+import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,8 +61,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,102 +94,145 @@ private fun Root(prefs: Prefs) {
     val ctx = LocalContext.current
     var tab by remember { mutableIntStateOf(0) }
     var a11y by remember { mutableStateOf(isServiceEnabled(ctx)) }
-    var tick by remember { mutableIntStateOf(0) }   // fuerza refrescar estadísticas
+    var tick by remember { mutableIntStateOf(0) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { a11y = isServiceEnabled(ctx); tick++ }
 
+    val tabs = remember {
+        listOf(
+            Icons.Filled.Home to "Inicio",
+            Icons.Filled.Lock to "Apps",
+            Icons.Filled.BarChart to "Progreso",
+            Icons.Filled.Settings to "Ajustes"
+        )
+    }
+
     Scaffold(
-        containerColor = Bg,
-        bottomBar = {
-            NavigationBar(containerColor = Bg) {
-                listOf(
-                    Icons.Filled.Home to "Inicio",
-                    Icons.Filled.Lock to "Apps",
-                    Icons.Filled.BarChart to "Progreso",
-                    Icons.Filled.Settings to "Ajustes"
-                ).forEachIndexed { i, (icon, label) ->
-                    NavigationBarItem(
-                        selected = tab == i, onClick = { tab = i },
-                        icon = { Icon(icon, label) }, label = { Text(label) }
-                    )
-                }
-            }
-        }
+        containerColor = Ios.c.bg,
+        contentWindowInsets = WindowInsets.statusBars,
+        bottomBar = { IosTabBar(tabs, tab) { tab = it } }
     ) { pad ->
-        Box(Modifier.padding(pad).statusBarsPadding().fillMaxSize()) {
+        Box(Modifier.padding(pad).fillMaxSize()) {
             when (tab) {
                 0 -> HomeScreen(prefs, a11y, tick)
                 1 -> AppsScreen(prefs)
                 2 -> ProgressScreen(prefs, tick)
-                else -> SettingsScreen(prefs)
+                else -> SettingsScreen(prefs, a11y)
             }
         }
     }
 }
 
 @Composable
-private fun cardModifier() = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Card)
+private fun ScreenColumn(content: @Composable () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(22.dp)
+    ) {
+        content()
+        Spacer(Modifier.height(12.dp))
+    }
+}
 
+// ---------------------------------------------------------------- Inicio
 @Composable
 private fun HomeScreen(prefs: Prefs, a11y: Boolean, tick: Int) {
     val ctx = LocalContext.current
+    val c = Ios.c
     var enabled by remember { mutableStateOf(prefs.enabled) }
-    val canEnable = prefs.blocked.isNotEmpty()
+    val blockedCount = prefs.blocked.size
+    val canEnable = blockedCount > 0
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    ScreenColumn {
+        LargeTitle("Pausa")
+
+        // Tarjeta de estado
         Column(
-            cardModifier().background(Indigo.copy(alpha = 0.15f)).padding(28.dp),
+            Modifier.padding(horizontal = 16.dp).fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp)).background(c.card).padding(vertical = 26.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(Icons.Filled.Lock, null, Modifier.size(54.dp), tint = if (enabled) Indigo else Color.Gray)
-            Spacer(Modifier.height(8.dp))
-            Text(if (enabled) "Bloqueo activo" else "Bloqueo apagado", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Text("${prefs.blocked.size} apps bloqueadas", color = Color.White.copy(alpha = 0.6f))
+            Box(
+                Modifier.size(84.dp).clip(CircleShape).background(if (enabled) c.blue else c.fill),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    if (enabled) Icons.Filled.Lock else Icons.Filled.LockOpen, null,
+                    tint = if (enabled) Color.White else c.secondary, modifier = Modifier.size(40.dp)
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(
+                if (enabled) "Bloqueo activado" else "Bloqueo desactivado",
+                fontSize = 22.sp, fontWeight = FontWeight.Bold, color = c.label
+            )
+            Text(
+                if (blockedCount == 1) "1 app protegida" else "$blockedCount apps protegidas",
+                fontSize = 15.sp, color = c.secondary
+            )
         }
 
         if (!a11y) {
-            Column(cardModifier().background(Color(0x33FF9800)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Falta un permiso", fontWeight = FontWeight.Bold, color = Color.White)
-                Text("Activa el servicio de accesibilidad “Pausa” para poder detectar las apps bloqueadas. No lee tu pantalla ni guarda datos.", color = Color.White.copy(alpha = 0.8f))
-                Button(onClick = { ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) { Text("Abrir ajustes de accesibilidad") }
+            Section(
+                header = "Permiso necesario",
+                footer = "Pausa usa accesibilidad solo para saber qué app se abre. No lee tu pantalla ni envía datos."
+            ) {
+                ListRow(
+                    title = "Activar accesibilidad",
+                    leading = { IconTile(Icons.Filled.Warning, c.orange) },
+                    trailing = { Chevron() },
+                    onClick = { ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                )
             }
         }
 
-        Row(cardModifier().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Activar bloqueo", Modifier.weight(1f), color = Color.White, fontSize = 16.sp)
-            Switch(checked = enabled, enabled = canEnable, onCheckedChange = { enabled = it; prefs.enabled = it })
+        Section(
+            footer = if (canEnable) "Al abrir una app bloqueada tendrás que resolver un minijuego."
+            else "Primero elige las apps a bloquear en la pestaña Apps."
+        ) {
+            ListRow(
+                title = "Bloqueo de apps",
+                leading = { IconTile(Icons.Filled.Lock, c.blue) },
+                trailing = {
+                    IosSwitch(checked = enabled && canEnable, enabled = canEnable) {
+                        enabled = it; prefs.enabled = it
+                    }
+                }
+            )
         }
-        if (!canEnable) Text("Primero elige apps en la pestaña Apps.", color = Color.White.copy(alpha = 0.6f))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard("${prefs.unlocksToday}", "desbloqueos hoy", Modifier.weight(1f))
-            StatCard("${prefs.minutesToday}", "min ganados hoy", Modifier.weight(1f))
+        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatTile("${prefs.unlocksToday}", "desbloqueos hoy", Modifier.weight(1f))
+            StatTile("${prefs.minutesToday}", "min ganados hoy", Modifier.weight(1f))
         }
 
-        Button(
-            onClick = { ctx.startActivity(Intent(ctx, BlockActivity::class.java)) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Indigo)
-        ) { Text("Probar un minijuego", Modifier.padding(6.dp)) }
+        Section {
+            ListRow(
+                title = "Probar un minijuego",
+                leading = { IconTile(Icons.Filled.SportsEsports, c.green) },
+                trailing = { Chevron() },
+                onClick = { ctx.startActivity(Intent(ctx, BlockActivity::class.java)) }
+            )
+        }
     }
 }
 
 @Composable
-private fun StatCard(big: String, small: String, modifier: Modifier) {
-    Column(modifier.clip(RoundedCornerShape(16.dp)).background(Card).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(big, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-        Text(small, fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+private fun StatTile(value: String, label: String, modifier: Modifier) {
+    Column(modifier.clip(RoundedCornerShape(14.dp)).background(Ios.c.card).padding(16.dp)) {
+        Text(value, fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Ios.c.label)
+        Text(label, fontSize = 13.sp, color = Ios.c.secondary)
     }
 }
 
+// ---------------------------------------------------------------- Apps
 private data class AppItem(val pkg: String, val label: String, val icon: ImageBitmap?)
 
 @Composable
 private fun AppsScreen(prefs: Prefs) {
     val ctx = LocalContext.current
-    var apps by remember { mutableStateOf<List<AppItem>>(emptyList()) }
+    val c = Ios.c
+    var apps by remember { mutableStateOf<List<AppItem>?>(null) }
+    var query by remember { mutableStateOf("") }
     val selected = remember { prefs.blocked.toMutableStateList() }
 
     LaunchedEffect(Unit) {
@@ -195,85 +245,184 @@ private fun AppsScreen(prefs: Prefs) {
                 .filter { it.first != ctx.packageName }
                 .sortedBy { it.second.lowercase() }
                 .map { (pkg, label) ->
-                    val d: Drawable? = runCatching { pm.getApplicationIcon(pkg) }.getOrNull()
-                    AppItem(pkg, label, d?.toBitmap(96, 96)?.asImageBitmap())
+                    val icon = runCatching { pm.getApplicationIcon(pkg).toBitmap(96, 96).asImageBitmap() }.getOrNull()
+                    AppItem(pkg, label, icon)
                 }
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Text("Apps bloqueadas", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = 16.dp))
-        Text("${selected.size} seleccionadas", color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
-        LazyColumn {
-            items(apps, key = { it.pkg }) { app ->
-                val checked = app.pkg in selected
-                Row(
-                    Modifier.fillMaxWidth().clickable {
-                        if (checked) selected.remove(app.pkg) else selected.add(app.pkg)
-                        prefs.blocked = selected.toSet()
-                    }.padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    app.icon?.let { Image(it, null, Modifier.size(40.dp)) }
-                    Text(app.label, Modifier.weight(1f).padding(horizontal = 12.dp), color = Color.White)
-                    Checkbox(checked = checked, onCheckedChange = null)
+    ScreenColumn {
+        Column {
+            LargeTitle("Apps")
+            Text(
+                when (selected.size) { 0 -> "Ninguna seleccionada"; 1 -> "1 seleccionada"; else -> "${selected.size} seleccionadas" },
+                fontSize = 15.sp, color = c.secondary, modifier = Modifier.padding(start = 20.dp)
+            )
+        }
+
+        // Campo de búsqueda
+        Row(
+            Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                .background(c.fill).padding(horizontal = 8.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.Search, null, tint = c.secondary, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Box(Modifier.weight(1f)) {
+                if (query.isEmpty()) Text("Buscar", fontSize = 17.sp, color = c.secondary)
+                BasicTextField(
+                    value = query, onValueChange = { query = it }, singleLine = true,
+                    textStyle = TextStyle(color = c.label, fontSize = 17.sp),
+                    cursorBrush = SolidColor(c.blue), modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        val list = apps
+        if (list == null) {
+            Text("Cargando apps…", color = c.secondary, modifier = Modifier.padding(horizontal = 20.dp))
+        } else {
+            val shown = list.filter { it.label.contains(query.trim(), ignoreCase = true) }
+            Section {
+                shown.forEachIndexed { i, app ->
+                    val checked = app.pkg in selected
+                    ListRow(
+                        title = app.label,
+                        leading = {
+                            if (app.icon != null) {
+                                Image(app.icon, null, Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)))
+                            } else Box(Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(c.fill))
+                        },
+                        trailing = {
+                            Icon(
+                                if (checked) Icons.Filled.CheckCircle else Icons.Outlined.Circle, null,
+                                tint = if (checked) c.blue else c.secondary.copy(alpha = 0.5f),
+                                modifier = Modifier.size(26.dp)
+                            )
+                        },
+                        onClick = {
+                            if (checked) selected.remove(app.pkg) else selected.add(app.pkg)
+                            prefs.blocked = selected.toSet()
+                        }
+                    )
+                    if (i < shown.lastIndex) Hairline(start = 64.dp)
                 }
+                if (shown.isEmpty()) ListRow(title = "Sin resultados", titleColor = c.secondary)
             }
         }
     }
 }
 
+// ---------------------------------------------------------------- Progreso
 @Composable
 private fun ProgressScreen(prefs: Prefs, tick: Int) {
+    val c = Ios.c
     val week = remember(tick) { prefs.lastWeek() }
+    val total = week.sumOf { it.second }
     val max = (week.maxOfOrNull { it.second } ?: 0).coerceAtLeast(1)
 
-    Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Progreso", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        Text("Minutos desbloqueados en los últimos 7 días", color = Color.White.copy(alpha = 0.6f))
-        Row(
-            cardModifier().height(240.dp).padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.Bottom
+    ScreenColumn {
+        LargeTitle("Progreso")
+
+        Section(
+            header = "Esta semana",
+            footer = "Menos minutos desbloqueados significa más tiempo recuperado."
         ) {
-            week.forEach { (day, minutes) ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
-                    Text("$minutes", fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f))
-                    Box(
-                        Modifier.size(width = 28.dp, height = (150.dp * minutes / max).coerceAtLeast(4.dp))
-                            .clip(RoundedCornerShape(6.dp)).background(Indigo)
-                    )
-                    Text(day, fontSize = 12.sp, color = Color.White, modifier = Modifier.padding(top = 6.dp))
+            Column(Modifier.padding(16.dp)) {
+                Text("$total min", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = c.label)
+                Text("desbloqueados · promedio ${total / 7} min al día", fontSize = 15.sp, color = c.secondary)
+                Spacer(Modifier.height(18.dp))
+                Row(
+                    Modifier.fillMaxWidth().height(170.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    week.forEachIndexed { i, (day, minutes) ->
+                        val today = i == week.lastIndex
+                        Column(
+                            Modifier.fillMaxHeight(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Bottom
+                        ) {
+                            Text("$minutes", fontSize = 11.sp, color = c.secondary)
+                            Spacer(Modifier.height(4.dp))
+                            Box(
+                                Modifier.size(width = 30.dp, height = (110.dp * minutes / max).coerceAtLeast(6.dp))
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(if (today) c.blue else c.blue.copy(alpha = 0.35f))
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                day, fontSize = 12.sp,
+                                color = if (today) c.label else c.secondary,
+                                fontWeight = if (today) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
+                    }
                 }
             }
         }
-        Text("Menos minutos = más tiempo recuperado.", fontSize = 13.sp, color = Color.White.copy(alpha = 0.5f))
+
+        Section(header = "Hoy") {
+            ListRow(title = "Desbloqueos", trailing = { ValueText("${prefs.unlocksToday}") })
+            Hairline()
+            ListRow(title = "Minutos ganados", trailing = { ValueText("${prefs.minutesToday}") })
+        }
     }
 }
 
+// ---------------------------------------------------------------- Ajustes
 @Composable
-private fun SettingsScreen(prefs: Prefs) {
+private fun SettingsScreen(prefs: Prefs, a11y: Boolean) {
+    val ctx = LocalContext.current
+    val c = Ios.c
     var games by remember { mutableStateOf(prefs.games) }
-    Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Ajustes", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        Text("Minijuegos que pueden desbloquear", color = Color.White.copy(alpha = 0.6f))
-        GameKind.values().forEach { g ->
-            val on = g in games
-            Row(
-                cardModifier().clickable {
-                    val new = if (on) games - g else games + g
-                    if (new.isNotEmpty()) { games = new; prefs.games = new }
-                }.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(g.title, Modifier.weight(1f), color = Color.White)
-                Checkbox(checked = on, onCheckedChange = null)
+
+    val meta = mapOf(
+        GameKind.MATH to (Icons.Filled.Calculate to c.blue),
+        GameKind.SEQUENCE to (Icons.Filled.GridView to c.purple),
+        GameKind.REACTION to (Icons.Filled.Bolt to c.orange)
+    )
+
+    ScreenColumn {
+        LargeTitle("Ajustes")
+
+        Section(
+            header = "Minijuegos para desbloquear",
+            footer = "Se elige uno al azar entre los activados. Debe haber al menos uno."
+        ) {
+            GameKind.values().forEachIndexed { i, g ->
+                val on = g in games
+                val (icon, color) = meta.getValue(g)
+                ListRow(
+                    title = g.title,
+                    leading = { IconTile(icon, color) },
+                    trailing = { if (on) Icon(Icons.Filled.Check, null, tint = c.blue, modifier = Modifier.size(22.dp)) },
+                    onClick = {
+                        val new = if (on) games - g else games + g
+                        if (new.isNotEmpty()) { games = new; prefs.games = new }
+                    }
+                )
+                if (i < GameKind.values().lastIndex) Hairline(start = 58.dp)
             }
         }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "Pausa usa un servicio de accesibilidad solo para saber qué app se abre. No lee tu pantalla ni envía datos fuera del teléfono.",
-            fontSize = 13.sp, color = Color.White.copy(alpha = 0.5f)
-        )
+
+        Section(
+            header = "Privacidad",
+            footer = "Pausa solo detecta qué app se abre. No lee tu pantalla ni envía datos fuera del teléfono."
+        ) {
+            ListRow(
+                title = "Servicio de accesibilidad",
+                trailing = {
+                    ValueText(if (a11y) "Activado" else "Desactivado")
+                    Spacer(Modifier.width(4.dp))
+                    Chevron()
+                },
+                onClick = { ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+            )
+        }
+
+        Section(header = "Acerca de") {
+            ListRow(title = "Versión", trailing = { ValueText("1.0") })
+        }
     }
 }

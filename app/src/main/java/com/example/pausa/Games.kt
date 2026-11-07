@@ -1,15 +1,17 @@
 package com.example.pausa
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,9 +47,18 @@ private fun newQuestion(): Question {
 
 @Composable
 private fun GameHeader(title: String, subtitle: String) {
-    Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        Text(subtitle, color = Color.White.copy(alpha = 0.6f))
+    Column(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(title, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ios.c.label)
+        Text(subtitle, fontSize = 15.sp, color = Ios.c.secondary)
+    }
+}
+
+@Composable
+private fun ProgressDots(done: Int, total: Int) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        repeat(total) { i ->
+            Box(Modifier.size(9.dp).clip(CircleShape).background(if (i < done) Ios.c.blue else Ios.c.fill))
+        }
     }
 }
 
@@ -62,22 +73,24 @@ fun MathGame(onWin: () -> Unit, onLose: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        GameHeader("Cálculo rápido", "$solved/5")
-        Text(q.text, fontSize = 56.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+        GameHeader("Cálculo rápido", "Resuelve 5 seguidas")
+        ProgressDots(solved, 5)
+        Spacer(Modifier.height(8.dp))
+        Text(q.text, fontSize = 60.sp, fontWeight = FontWeight.Bold, color = Ios.c.label)
         q.options.chunked(2).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { v ->
                     Box(
-                        Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
-                            .background(Color.White.copy(alpha = 0.1f))
-                            .clickable {
+                        Modifier.weight(1f).height(76.dp)
+                            .pressable {
                                 if (v == q.answer) {
                                     solved++
                                     if (solved >= 5) onWin() else q = newQuestion()
                                 } else onLose()
-                            }.padding(vertical = 22.dp),
+                            }
+                            .clip(RoundedCornerShape(16.dp)).background(Ios.c.card),
                         contentAlignment = Alignment.Center
-                    ) { Text("$v", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color.White) }
+                    ) { Text("$v", fontSize = 28.sp, fontWeight = FontWeight.SemiBold, color = Ios.c.label) }
                 }
             }
         }
@@ -117,15 +130,16 @@ fun SequenceGame(onWin: () -> Unit, onLose: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        GameHeader("Secuencia", if (showing) "Memoriza…" else "Repite el orden")
-        Box(Modifier.height(8.dp))
+        GameHeader("Secuencia", if (showing) "Memoriza el orden…" else "Ahora repítelo")
+        Spacer(Modifier.height(12.dp))
         (0 until 9).chunked(3).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { i ->
                     Box(
-                        Modifier.weight(1f).height(90.dp).clip(RoundedCornerShape(14.dp))
-                            .background(if (lit == i) Indigo else Color.White.copy(alpha = 0.1f))
-                            .clickable { tap(i) }
+                        Modifier.weight(1f).height(92.dp)
+                            .pressable(enabled = !showing) { tap(i) }
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (lit == i) Ios.c.blue else Ios.c.card)
                     )
                 }
             }
@@ -149,17 +163,19 @@ fun ReactionGame(onWin: () -> Unit, onLose: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        GameHeader("Reflejos", "Toca cuando se ponga verde · $hits/3")
+        GameHeader("Reflejos", "Toca cuando se ponga verde")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { ProgressDots(hits, 3) }
         Box(
-            Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp))
-                .background(if (waiting) Color(0xCCE53935) else Color(0xFF43A047))
-                .clickable {
+            Modifier.fillMaxSize()
+                .pressable {
                     if (waiting) onLose()
                     else if (System.currentTimeMillis() - readyAt < 600) {
                         hits++
                         if (hits >= 3) onWin() else run++
                     } else onLose()
-                },
+                }
+                .clip(RoundedCornerShape(28.dp))
+                .background(if (waiting) Ios.c.red else Ios.c.green),
             contentAlignment = Alignment.Center
         ) {
             Text(
