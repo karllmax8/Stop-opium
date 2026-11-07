@@ -46,7 +46,7 @@ private fun newQuestion(): Question {
 }
 
 @Composable
-private fun GameHeader(title: String, subtitle: String) {
+fun GameHeader(title: String, subtitle: String) {
     Column(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(title, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ios.c.label)
         Text(subtitle, fontSize = 15.sp, color = Ios.c.secondary)

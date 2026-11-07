@@ -43,6 +43,7 @@ class BlockActivity : ComponentActivity() {
                         if (!practice) {
                             prefs.unlockUntil = System.currentTimeMillis() + minutes * 60_000L
                             prefs.recordUnlock(minutes)
+                            prefs.gems += 10   // recompensa para la tienda de Brote
                             BlockerService.instance?.scheduleRecheck(minutes * 60_000L)
                         }
                         finish() // vuelve a la app que querías abrir
@@ -87,6 +88,7 @@ private fun GameFlow(prefs: Prefs, practice: Boolean, onClose: () -> Unit, onUnl
                 key(round) {
                     val lose: () -> Unit = { round++ }
                     when (game) {
+                        GameKind.WORD -> WordGame({ won = true }, lose)
                         GameKind.MATH -> MathGame({ won = true }, lose)
                         GameKind.SEQUENCE -> SequenceGame({ won = true }, lose)
                         GameKind.REACTION -> ReactionGame({ won = true }, lose)

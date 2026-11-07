@@ -2,6 +2,16 @@
 
 App para Android (Kotlin + Jetpack Compose, minSdk 26) que bloquea apps distractoras. Para abrir una app bloqueada, ganas minutos resolviendo un minijuego y girando una ruleta (5, 10 o 15 min). Al acabarse el tiempo, vuelve a bloquear.
 
+
+## Funciones (v1.1)
+- **Brote**, la mascota original: su ánimo cambia según los minutos que desbloqueas frente a tu meta diaria.
+- **Gemas y tienda**: ganas 10 gemas cada vez que desbloqueas una app con un minijuego y las gastas en accesorios para Brote.
+- **Minijuegos**: Palabra (tipo Wordle, 6 intentos), Cálculo rápido, Secuencia y Reflejos.
+- **Cabina de premios**: 5, 10, 15 min o jackpot de 30 min (5 % de probabilidad).
+- **Estadísticas reales** (permiso "Acceso a datos de uso"): tiempo en pantalla, veces que tomas el móvil, últimos 7 días y apps que más usas.
+- **Racha** de días en que cumples tu meta diaria.
+- **Liga**: de momento es una clasificación de ejemplo con datos de muestra; la liga en línea necesita un servidor.
+
 ## Cómo funciona
 - Un **servicio de accesibilidad** (`BlockerService`) detecta qué app pasa a primer plano.
 - Si está bloqueada y no hay minutos ganados, abre `BlockActivity` encima (minijuego -> ruleta).
